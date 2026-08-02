@@ -1,0 +1,37 @@
+rules_version = '2';
+
+// ============================================================
+// Firebase Storage Security Rules — Krem Chympe Waterfall
+// ============================================================
+// Deploy by pasting this whole file into: Firebase Console -> Storage ->
+// Rules tab -> Publish. Works from a phone browser, no CLI needed.
+// (If you ever do use the Firebase CLI instead: firebase deploy --only storage)
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isStaff() {
+      return request.auth != null;
+    }
+
+    // Payment receipts uploaded by guest customers at checkout.
+    match /receipts/{orderId}/{fileName} {
+      allow create: if request.resource.size < 10 * 1024 * 1024
+                    && request.resource.contentType.matches("image/.*|application/pdf");
+      allow read: if isStaff(); // staff view receipts in the dashboard
+      allow update, delete: if isStaff();
+    }
+
+    // Dish photos, uploaded by staff/admin only.
+    match /dishes/{fileName} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    // QR code / payment settings images, uploaded by admin only.
+    match /settings/{fileName} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+  }
+}

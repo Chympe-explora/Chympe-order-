@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Krem Chympe Waterfall — Order Food</title>
+<meta name="theme-color" content="#0f766e" />
+<link rel="manifest" href="manifest.json" />
+<link rel="apple-touch-icon" href="icons/icon-192.png" />
+<style>
+  :root{
+    --primary:#0f766e; --primary-dark:#0b5a54; --bg:#f7f8f6;
+    --card:#ffffff; --text:#1a2421; --muted:#6b7770; --accent:#f59e0b;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--text); padding-bottom:90px;}
+  header{background:linear-gradient(135deg,var(--primary),var(--primary-dark)); color:#fff; padding:28px 20px 22px; border-radius:0 0 24px 24px;}
+  header h1{font-size:22px; font-weight:700;}
+  header p{font-size:13px; opacity:.85; margin-top:4px;}
+  .notice{margin:16px; padding:12px 14px; background:#fff7ed; border:1px solid #fed7aa; border-radius:12px; font-size:13px; color:#9a5b13;}
+  main{padding:0 16px;}
+  .search-row{display:flex; gap:8px; margin:4px 0 12px;}
+  .search-row input{flex:1; padding:11px 14px; border-radius:12px; border:1px solid #e2e5e2; font-size:14px; background:#fff;}
+  .category-bar{display:flex; gap:8px; overflow-x:auto; padding:2px 0 14px;}
+  .chip{flex:0 0 auto; padding:8px 16px; border-radius:999px; background:#fff; border:1px solid #e2e5e2; font-size:13px; font-weight:600; color:var(--muted); cursor:pointer;}
+  .chip.active{background:var(--primary); color:#fff; border-color:var(--primary);}
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:6px;}
+  .dish{background:var(--card); border-radius:16px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.06); display:flex; flex-direction:column;}
+  .dish img{width:100%; aspect-ratio:1/1; object-fit:cover; background:#eee;}
+  .dish.unavailable img{filter:grayscale(1); opacity:.5;}
+  .dish-body{padding:10px 12px 12px; flex:1; display:flex; flex-direction:column;}
+  .dish-name{font-size:14px; font-weight:700;}
+  .dish-desc{font-size:11.5px; color:var(--muted); margin-top:2px; line-height:1.4; flex:1;}
+  .dish-foot{display:flex; align-items:center; justify-content:space-between; margin-top:10px;}
+  .price{font-weight:700; font-size:14px;}
+  .add-btn{background:var(--primary); color:#fff; border:none; border-radius:10px; padding:6px 12px; font-size:12px; font-weight:700; cursor:pointer;}
+  .add-btn:disabled{background:#c7ccc9; cursor:not-allowed;}
+  .qty-control{display:flex; align-items:center; gap:8px; background:var(--primary); border-radius:10px; padding:4px 8px;}
+  .qty-control button{background:none; border:none; color:#fff; font-size:16px; font-weight:700; width:20px; cursor:pointer;}
+  .qty-control span{color:#fff; font-size:13px; font-weight:700; min-width:14px; text-align:center;}
+  .status-badge{font-size:10px; font-weight:700; padding:2px 8px; border-radius:999px;}
+  .status-badge.sold{background:#fee2e2; color:#b91c1c;}
+  .status-badge.featured{background:#fef3c7; color:#92400e;}
+  .empty-state{text-align:center; color:var(--muted); font-size:13px; padding:40px 20px;}
+  .cart-bar{position:fixed; bottom:14px; left:16px; right:16px; background:var(--text); color:#fff; border-radius:16px; padding:14px 18px; display:none; align-items:center; justify-content:space-between; box-shadow:0 8px 24px rgba(0,0,0,.25); cursor:pointer; z-index:15;}
+  .cart-bar span.count{background:var(--accent); border-radius:999px; padding:2px 8px; font-size:12px; margin-right:8px;}
+  .cart-bar button{background:#fff; color:var(--text); border:none; border-radius:10px; padding:8px 16px; font-weight:700; font-size:13px;}
+
+  .sheet-overlay{position:fixed; inset:0; background:rgba(0,0,0,.4); display:none; z-index:20;}
+  .sheet{position:fixed; left:0; right:0; bottom:0; background:#fff; border-radius:20px 20px 0 0; padding:20px; max-height:85vh; overflow-y:auto; z-index:21; display:none;}
+  .sheet h2{font-size:16px; margin-bottom:14px;}
+  .cart-item{display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid #eee; gap:10px;}
+  .cart-item-name{font-size:13px; font-weight:600;}
+  .cart-item-price{font-size:12px; color:var(--muted);}
+  .cart-total-row{display:flex; justify-content:space-between; padding:16px 0 4px; font-weight:700; font-size:15px;}
+  .prep-row{display:flex; justify-content:space-between; padding:4px 0; font-size:12.5px; color:var(--muted);}
+  .checkout-btn{width:100%; margin-top:14px; padding:14px; background:var(--primary); color:#fff; border:none; border-radius:12px; font-weight:700; font-size:15px;}
+  .checkout-btn:disabled{background:#c7ccc9;}
+  .empty-cart{text-align:center; color:var(--muted); font-size:13px; padding:30px 0;}
+
+  .field{margin-bottom:14px;}
+  .field label{font-size:12px; color:var(--muted); display:block; margin-bottom:6px; font-weight:600;}
+  .field input, .field textarea{width:100%; padding:12px 13px; border-radius:10px; border:1px solid #e2e5e2; font-size:14px; font-family:inherit; background:#fff;}
+  .field textarea{resize:vertical; min-height:60px;}
+  .field-error{color:#b91c1c; font-size:11.5px; margin-top:4px; min-height:14px;}
+  .back-link{font-size:13px; color:var(--muted); margin-bottom:12px; display:inline-block; cursor:pointer;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Krem Chympe Waterfall</h1>
+  <p>Order ahead — collect at the food counter</p>
+</header>
+
+<div class="notice">📍 Pickup Location: Krem Chympe Waterfall Food Pickup Counter</div>
+
+<main>
+  <div class="search-row">
+    <input type="text" id="searchInput" placeholder="Search dishes..." />
+  </div>
+  <div class="category-bar" id="categoryBar"></div>
+  <div class="grid" id="dishGrid"></div>
+  <div class="empty-state" id="emptyState" style="display:none;">No dishes match your search.</div>
+</main>
+
+<div class="cart-bar" id="cartBar">
+  <div><span class="count" id="cartCount">0</span>items · ₹<span id="cartTotal">0</span></div>
+  <button>View Cart</button>
+</div>
+
+<div class="sheet-overlay" id="overlay"></div>
+
+<!-- CART SHEET -->
+<div class="sheet" id="cartSheet">
+  <h2>Your Cart</h2>
+  <div id="cartItems"></div>
+  <div class="prep-row"><span>Estimated preparation time</span><span id="prepTime">10–15 min</span></div>
+  <div class="cart-total-row"><span>Total</span><span id="sheetTotal">₹0</span></div>
+  <button class="checkout-btn" id="checkoutBtn">Continue to Details</button>
+</div>
+
+<!-- CUSTOMER DETAILS SHEET -->
+<div class="sheet" id="detailsSheet">
+  <span class="back-link" id="backToCart">&larr; Back to cart</span>
+  <h2>Your Details</h2>
+  <form id="detailsForm">
+    <div class="field">
+      <label for="custName">Full Name</label>
+      <input type="text" id="custName" required maxlength="60" />
+      <div class="field-error" id="nameErr"></div>
+    </div>
+    <div class="field">
+      <label for="custMobile">Mobile Number</label>
+      <input type="tel" id="custMobile" required pattern="[0-9]{10}" maxlength="10" placeholder="10-digit number" />
+      <div class="field-error" id="mobileErr"></div>
+    </div>
+    <div class="field">
+      <label for="custNote">Special Instructions (Optional)</label>
+      <textarea id="custNote" maxlength="200" placeholder="e.g. less spicy, no onion..."></textarea>
+    </div>
+    <div class="notice" style="margin:0 0 14px;">📍 Pickup Location: Krem Chympe Waterfall Food Pickup Counter</div>
+    <button type="submit" class="checkout-btn" id="submitOrderBtn">Send Order to Restaurant</button>
+  </form>
+</div>
+
+<script type="module">
+  import { db } from "./firebase-init.js";
+  import {
+    collection, doc, onSnapshot, query, orderBy, addDoc, serverTimestamp
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  // ---- Editable site content (set by super admin) ----
+  onSnapshot(doc(db, "content", "site"), (snap) => {
+    if (!snap.exists()) return;
+    const data = snap.data();
+    if (data.headerTitle) document.querySelector("header h1").textContent = data.headerTitle;
+    if (data.headerSubtitle) document.querySelector("header p").textContent = data.headerSubtitle;
+    if (data.notice) document.querySelectorAll(".notice").forEach(el => el.textContent = "📍 " + data.notice);
+  });
+
+  let DISHES = [];
+  let CATEGORIES = ["All"];
+  let activeCategory = "All";
+  let searchTerm = "";
+  let cart = {}; // { dishId: quantity }
+
+  const categoryBar = document.getElementById("categoryBar");
+  const dishGrid = document.getElementById("dishGrid");
+  const emptyState = document.getElementById("emptyState");
+  const cartBar = document.getElementById("cartBar");
+  const cartCount = document.getElementById("cartCount");
+  const cartTotal = document.getElementById("cartTotal");
+  const overlay = document.getElementById("overlay");
+  const cartSheet = document.getElementById("cartSheet");
+  const detailsSheet = document.getElementById("detailsSheet");
+  const cartItems = document.getElementById("cartItems");
+  const sheetTotal = document.getElementById("sheetTotal");
+
+  // ---- Live menu from Firestore ----
+  // categories collection: { name, sortOrder }
+  // dishes collection: { name, desc, price, category, img, available, featured, sortOrder }
+  onSnapshot(query(collection(db, "categories"), orderBy("sortOrder", "asc")), (snap) => {
+    CATEGORIES = ["All", ...snap.docs.map(d => d.data().name)];
+    renderCategories();
+  }, (err) => console.error("categories listener:", err));
+
+  onSnapshot(query(collection(db, "dishes"), orderBy("sortOrder", "asc")), (snap) => {
+    DISHES = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderDishes();
+  }, (err) => console.error("dishes listener:", err));
+
+  function renderCategories() {
+    categoryBar.innerHTML = "";
+    CATEGORIES.forEach(cat => {
+      const chip = document.createElement("div");
+      chip.className = "chip" + (cat === activeCategory ? " active" : "");
+      chip.textContent = cat;
+      chip.onclick = () => { activeCategory = cat; renderCategories(); renderDishes(); };
+      categoryBar.appendChild(chip);
+    });
+  }
+
+  function renderDishes() {
+    dishGrid.innerHTML = "";
+    let visible = activeCategory === "All" ? DISHES : DISHES.filter(d => d.category === activeCategory);
+    if (searchTerm) {
+      const t = searchTerm.toLowerCase();
+      visible = visible.filter(d => d.name.toLowerCase().includes(t) || (d.desc || "").toLowerCase().includes(t));
+    }
+    emptyState.style.display = visible.length === 0 ? "block" : "none";
+    visible.forEach(dish => {
+      const qty = cart[dish.id] || 0;
+      const isAvailable = dish.available && dish.available !== "unavailable" && dish.available !== "sold_out";
+      const card = document.createElement("div");
+      card.className = "dish" + (isAvailable ? "" : " unavailable");
+      card.innerHTML = `
+        <img src="${dish.img || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400'}" alt="${dish.name}" loading="lazy">
+        <div class="dish-body">
+          <div class="dish-name">${dish.name}${dish.available === "featured" ? ' <span class="status-badge featured">★</span>' : ""}</div>
+          <div class="dish-desc">${dish.desc || ""}</div>
+          <div class="dish-foot">
+            ${isAvailable ? `<span class="price">₹${dish.price}</span>` : `<span class="status-badge sold">Sold Out</span>`}
+            <div class="control-slot"></div>
+          </div>
+        </div>`;
+      const slot = card.querySelector(".control-slot");
+      if (!isAvailable) {
+        slot.innerHTML = `<button class="add-btn" disabled>Add</button>`;
+      } else if (qty === 0) {
+        const btn = document.createElement("button");
+        btn.className = "add-btn";
+        btn.textContent = "Add";
+        btn.onclick = () => { cart[dish.id] = 1; renderDishes(); renderCartBar(); };
+        slot.appendChild(btn);
+      } else {
+        slot.innerHTML = `
+          <div class="qty-control">
+            <button data-action="dec">−</button>
+            <span>${qty}</span>
+            <button data-action="inc">+</button>
+          </div>`;
+        slot.querySelector('[data-action="dec"]').onclick = () => {
+          cart[dish.id] = Math.max(0, cart[dish.id] - 1);
+          if (cart[dish.id] === 0) delete cart[dish.id];
+          renderDishes(); renderCartBar();
+        };
+        slot.querySelector('[data-action="inc"]').onclick = () => {
+          cart[dish.id] += 1; renderDishes(); renderCartBar();
+        };
+      }
+      dishGrid.appendChild(card);
+    });
+  }
+
+  document.getElementById("searchInput").addEventListener("input", (e) => {
+    searchTerm = e.target.value;
+    renderDishes();
+  });
+
+  function cartCountTotal() {
+    let count = 0, total = 0;
+    for (const id in cart) {
+      const dish = DISHES.find(d => d.id === id);
+      if (!dish) continue;
+      count += cart[id];
+      total += cart[id] * dish.price;
+    }
+    return { count, total };
+  }
+
+  function renderCartBar() {
+    const { count, total } = cartCountTotal();
+    if (count === 0) { cartBar.style.display = "none"; return; }
+    cartBar.style.display = "flex";
+    cartCount.textContent = count;
+    cartTotal.textContent = total;
+  }
+
+  function renderCartSheet() {
+    const { total } = cartCountTotal();
+    cartItems.innerHTML = "";
+    const ids = Object.keys(cart);
+    document.getElementById("checkoutBtn").disabled = ids.length === 0;
+    if (ids.length === 0) {
+      cartItems.innerHTML = `<div class="empty-cart">Your cart is empty.</div>`;
+    } else {
+      ids.forEach(id => {
+        const dish = DISHES.find(d => d.id === id);
+        if (!dish) return;
+        const qty = cart[id];
+        const row = document.createElement("div");
+        row.className = "cart-item";
+        row.innerHTML = `
+          <div>
+            <div class="cart-item-name">${dish.name}</div>
+            <div class="cart-item-price">₹${dish.price} × ${qty}</div>
+          </div>
+          <div class="qty-control">
+            <button data-action="dec">−</button>
+            <span>${qty}</span>
+            <button data-action="inc">+</button>
+          </div>`;
+        row.querySelector('[data-action="dec"]').onclick = () => {
+          cart[id] = Math.max(0, cart[id] - 1);
+          if (cart[id] === 0) delete cart[id];
+          renderDishes(); renderCartBar(); renderCartSheet();
+        };
+        row.querySelector('[data-action="inc"]').onclick = () => {
+          cart[id] += 1; renderDishes(); renderCartBar(); renderCartSheet();
+        };
+        cartItems.appendChild(row);
+      });
+    }
+    sheetTotal.textContent = "₹" + total;
+    // simple estimate: base 10 min + 2 min per extra item beyond first 3
+    const { count } = cartCountTotal();
+    const extra = Math.max(0, count - 3) * 2;
+    document.getElementById("prepTime").textContent = `${10 + extra}–${15 + extra} min`;
+  }
+
+  cartBar.onclick = () => {
+    renderCartSheet();
+    overlay.style.display = "block";
+    cartSheet.style.display = "block";
+  };
+  overlay.onclick = () => {
+    overlay.style.display = "none";
+    cartSheet.style.display = "none";
+    detailsSheet.style.display = "none";
+  };
+
+  document.getElementById("checkoutBtn").onclick = () => {
+    if (Object.keys(cart).length === 0) return;
+    cartSheet.style.display = "none";
+    detailsSheet.style.display = "block";
+  };
+  document.getElementById("backToCart").onclick = () => {
+    detailsSheet.style.display = "none";
+    cartSheet.style.display = "block";
+  };
+
+  // ---- Submit order to Firestore -> restaurant dashboard ----
+  document.getElementById("detailsForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const nameEl = document.getElementById("custName");
+    const mobileEl = document.getElementById("custMobile");
+    const noteEl = document.getElementById("custNote");
+    const nameErr = document.getElementById("nameErr");
+    const mobileErr = document.getElementById("mobileErr");
+    nameErr.textContent = ""; mobileErr.textContent = "";
+
+    const name = nameEl.value.trim();
+    const mobile = mobileEl.value.trim();
+    const note = noteEl.value.trim();
+
+    let valid = true;
+    if (name.length < 2) { nameErr.textContent = "Please enter your full name."; valid = false; }
+    if (!/^[0-9]{10}$/.test(mobile)) { mobileErr.textContent = "Enter a valid 10-digit mobile number."; valid = false; }
+    if (!valid) return;
+
+    const { count, total } = cartCountTotal();
+    if (count === 0) return;
+
+    const items = Object.keys(cart).map(id => {
+      const dish = DISHES.find(d => d.id === id);
+      return { dishId: id, name: dish.name, price: dish.price, qty: cart[id] };
+    });
+
+    const btn = document.getElementById("submitOrderBtn");
+    btn.disabled = true;
+    btn.textContent = "Sending...";
+
+    try {
+      const docRef = await addDoc(collection(db, "orders"), {
+        customerName: name,
+        mobile: mobile,
+        specialInstructions: note,
+        items: items,
+        total: total,
+        status: "pending_restaurant",
+        correctionRequests: [],
+        createdAt: serverTimestamp(),
+        pickupLocation: "Krem Chympe Waterfall Food Pickup Counter"
+      });
+      localStorage.setItem("kc_last_order_id", docRef.id);
+      window.location.href = `order.html?id=${docRef.id}`;
+    } catch (err) {
+      console.error(err);
+      btn.disabled = false;
+      btn.textContent = "Send Order to Restaurant";
+      alert("Could not send your order. Please check your connection and try again.");
+    }
+  });
+
+  // Resume an in-progress order if the customer reopens the app
+  window.addEventListener("load", () => {
+    const lastOrderId = localStorage.getItem("kc_last_order_id");
+    if (lastOrderId && new URLSearchParams(window.location.search).get("new") !== "1") {
+      // Only auto-resume if there is no explicit intent to start fresh
+    }
+  });
+
+  // Register service worker for PWA installability
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("service-worker.js").catch(() => {});
+    });
+  }
+</script>
+
+</body>
+</html>

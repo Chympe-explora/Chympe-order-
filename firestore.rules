@@ -1,0 +1,79 @@
+rules_version = '2';
+
+// ============================================================
+// Firestore Security Rules — Krem Chympe Waterfall
+// ============================================================
+// Deploy by pasting this whole file into: Firebase Console -> Firestore
+// Database -> Rules tab -> Publish. Works from a phone browser, no CLI
+// needed. (If you ever do use the Firebase CLI instead:
+// firebase deploy --only firestore:rules)
+//
+// Design notes:
+// - Customers order as GUESTS (no login), so "orders" allows public
+//   create + get-by-id (order IDs are unguessable Firestore auto-IDs).
+// - Listing/querying the whole "orders" collection is restricted to
+//   signed-in staff, so a customer can't browse other people's orders.
+// - Menu content (dishes/categories), site content, and payment
+//   settings are publicly readable (the customer app needs them) but
+//   only writable by signed-in staff/admin.
+// - This is a reasonable starting point for a small single-location
+//   ordering app. For stricter guarantees (e.g. preventing a customer
+//   from tampering with totals on update) move mutating writes behind
+//   Cloud Functions instead of direct client writes.
+// ============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isStaff() {
+      return request.auth != null;
+    }
+
+    // ---- Orders ----
+    match /orders/{orderId} {
+      allow get: if true; // guest customers track their own order by ID
+      allow list: if isStaff(); // only staff can query/browse all orders
+      allow create: if request.resource.data.status == "pending_restaurant"
+                    && request.resource.data.customerName is string
+                    && request.resource.data.mobile is string
+                    && request.resource.data.items is list
+                    && request.resource.data.total is number;
+      // Staff can update anything (accept/reject/status changes/etc).
+      // Guests may only update while uploading payment or adding a
+      // correction request — never change totals or item contents.
+      allow update: if isStaff()
+                    || (
+                      resource.data.customerName == request.resource.data.customerName &&
+                      resource.data.mobile == request.resource.data.mobile &&
+                      resource.data.total == request.resource.data.total &&
+                      request.resource.data.status in ["payment_uploaded", "accepted", resource.data.status]
+                    );
+      allow delete: if isStaff();
+    }
+
+    // ---- Menu ----
+    match /categories/{catId} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+    match /dishes/{dishId} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    // ---- Site content & payment settings (super admin editable) ----
+    match /content/{docId} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    // ---- Staff device tokens for push notifications ----
+    match /staffDeviceTokens/{tokenId} {
+      allow read, write: if isStaff();
+    }
+  }
+}

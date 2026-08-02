@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Restaurant Dashboard — Krem Chympe</title>
+<style>
+  *{box-sizing:border-box;}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:#f4f5f3; margin:0; color:#1a2421;}
+  header{background:#0f766e; color:#fff; padding:16px 20px; display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; z-index:10;}
+  header h1{font-size:16px;}
+  header button{background:rgba(255,255,255,.15); border:none; color:#fff; padding:8px 14px; border-radius:8px; font-size:12.5px; cursor:pointer;}
+  .tabs{display:flex; background:#fff; border-bottom:1px solid #e5e7eb; position:sticky; top:53px; z-index:9; overflow-x:auto;}
+  .tab{flex:0 0 auto; padding:12px 18px; font-size:13px; font-weight:600; color:#667; cursor:pointer; border-bottom:2px solid transparent; white-space:nowrap;}
+  .tab.active{color:#0f766e; border-color:#0f766e;}
+  main{padding:16px; max-width:720px; margin:0 auto;}
+  .panel{display:none;}
+  .panel.active{display:block;}
+  .card{background:#fff; border-radius:14px; padding:16px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,.06);}
+  .card h2{font-size:14px; margin-bottom:8px;}
+  .card p{font-size:13px; color:#667; line-height:1.5;}
+  #gate{padding:60px 20px; text-align:center; color:#667;}
+  .order-card{background:#fff; border-radius:14px; padding:14px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,.06); border-left:4px solid #f59e0b;}
+  .order-card.accepted{border-color:#0ea5e9;}
+  .order-card.payment_uploaded{border-color:#a855f7;}
+  .order-card.payment_verified, .order-card.preparing{border-color:#0f766e;}
+  .order-card.ready{border-color:#16a34a;}
+  .order-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;}
+  .order-id{font-size:11px; color:#9aa39d;}
+  .status-pill{font-size:10.5px; font-weight:700; padding:3px 9px; border-radius:999px; background:#f1f3f1; color:#556;}
+  .order-cust{font-size:14px; font-weight:700;}
+  .order-mobile{font-size:12px; color:#667;}
+  .order-items{font-size:12.5px; color:#334; margin:8px 0; line-height:1.5;}
+  .order-total{font-weight:700; font-size:13.5px;}
+  .order-note{font-size:12px; color:#9a5b13; background:#fff7ed; padding:6px 8px; border-radius:8px; margin:6px 0;}
+  .btn-row{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;}
+  .btn{border:none; border-radius:8px; padding:8px 12px; font-size:12.5px; font-weight:700; cursor:pointer;}
+  .btn-accept{background:#0f766e; color:#fff;}
+  .btn-reject{background:#fee2e2; color:#b91c1c;}
+  .btn-change{background:#fef3c7; color:#92400e;}
+  .btn-neutral{background:#f1f3f1; color:#334;}
+  .btn-verify{background:#0f766e; color:#fff;}
+  .btn-print{background:#e2e8f0; color:#334;}
+  .receipt-link{font-size:12px; color:#0f766e; text-decoration:underline; cursor:pointer;}
+  .corr-list{margin-top:8px; border-top:1px dashed #e5e7eb; padding-top:8px;}
+  .corr-item{font-size:12px; padding:5px 0; display:flex; justify-content:space-between; gap:8px; align-items:flex-start;}
+  .corr-actions{display:flex; gap:6px;}
+  .corr-actions button{font-size:11px; padding:3px 8px; border-radius:6px; border:none; cursor:pointer;}
+  .empty{text-align:center; color:#9aa39d; font-size:13px; padding:30px 0;}
+
+  /* Menu management */
+  .dish-row{display:flex; gap:10px; align-items:center; padding:10px 0; border-bottom:1px solid #eee;}
+  .dish-row img{width:48px; height:48px; border-radius:8px; object-fit:cover; background:#eee;}
+  .dish-row .info{flex:1;}
+  .dish-row .info .name{font-size:13.5px; font-weight:700;}
+  .dish-row .info .meta{font-size:11.5px; color:#667;}
+  select, input, textarea{width:100%; padding:10px 11px; border-radius:8px; border:1px solid #dfe3e0; font-size:13px; font-family:inherit; margin-bottom:8px;}
+  label{font-size:11.5px; color:#667; font-weight:600; display:block; margin-bottom:3px;}
+  .field{margin-bottom:10px;}
+  .btn-primary{background:#0f766e; color:#fff; width:100%; padding:11px; border:none; border-radius:8px; font-weight:700; font-size:13.5px; cursor:pointer;}
+  .small-link{font-size:12px; color:#0f766e; cursor:pointer;}
+
+  /* Reports */
+  .stat-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .stat-box{background:#f7f8f6; border-radius:10px; padding:12px; text-align:center;}
+  .stat-box .num{font-size:20px; font-weight:800; color:#0f766e;}
+  .stat-box .lbl{font-size:11px; color:#667; margin-top:2px;}
+
+  #printArea{display:none;}
+  @media print {
+    body *{visibility:hidden;}
+    #printArea, #printArea *{visibility:visible;}
+    #printArea{display:block; position:absolute; left:0; top:0; width:100%; padding:20px;}
+  }
+</style>
+</head>
+<body>
+
+<div id="gate">Checking access…</div>
+
+<div id="app" style="display:none;">
+  <header>
+    <h1>Restaurant Dashboard</h1>
+    <button id="logoutBtn">Log Out</button>
+  </header>
+  <div class="tabs">
+    <div class="tab active" data-panel="ordersPanel">Live Orders</div>
+    <div class="tab" data-panel="historyPanel">History</div>
+    <div class="tab" data-panel="menuPanel">Menu</div>
+    <div class="tab" data-panel="reportsPanel">Reports</div>
+  </div>
+  <main>
+    <div class="panel active" id="ordersPanel">
+      <div class="card" style="margin-bottom:10px;">
+        <input type="text" id="ordersSearch" placeholder="Search by name, mobile, or order ID..." style="margin-bottom:0;" />
+      </div>
+      <div id="ordersList"></div>
+    </div>
+    <div class="panel" id="historyPanel">
+      <div class="card" style="margin-bottom:10px;">
+        <input type="text" id="historySearch" placeholder="Search by name, mobile, or order ID..." />
+        <select id="historyStatusFilter" style="margin-bottom:0;">
+          <option value="">All statuses</option>
+          <option value="completed">Completed</option>
+          <option value="rejected">Rejected</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+      </div>
+      <div id="historyList"></div>
+    </div>
+    <div class="panel" id="menuPanel"></div>
+    <div class="panel" id="reportsPanel"></div>
+  </main>
+</div>
+
+<div id="printArea"></div>
+
+<script type="module">
+  import { auth, db, storage, VAPID_KEY, firebaseApp } from "./firebase-init.js";
+  import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import {
+    collection, doc, onSnapshot, query, orderBy, where, updateDoc, addDoc,
+    deleteDoc, getDocs, setDoc, Timestamp
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+
+  // ---------- Auth gate ----------
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      document.getElementById("gate").style.display = "none";
+      document.getElementById("app").style.display = "block";
+      initDashboard();
+      initMessaging();
+    } else {
+      window.location.href = "staff-login.html";
+    }
+  });
+  document.getElementById("logoutBtn").addEventListener("click", async () => {
+    await signOut(auth);
+    window.location.href = "staff-login.html";
+  });
+
+  // ---------- Tabs ----------
+  document.querySelectorAll(".tab").forEach(tab => {
+    tab.onclick = () => {
+      document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+      document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+      tab.classList.add("active");
+      document.getElementById(tab.dataset.panel).classList.add("active");
+    };
+  });
+
+  // ---------- Push notifications (foreground + registration) ----------
+  async function initMessaging() {
+    try {
+      const { getMessaging, getToken, onMessage } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js");
+      if (!("Notification" in window)) return;
+      const perm = await Notification.requestPermission();
+      if (perm !== "granted") return;
+      const messaging = getMessaging(firebaseApp);
+      const swReg = await navigator.serviceWorker.register("service-worker.js");
+      const token = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: swReg });
+      if (token) {
+        await setDoc(doc(db, "staffDeviceTokens", token), { token, updatedAt: Timestamp.now() });
+      }
+      onMessage(messaging, (payload) => {
+        new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=").play().catch(() => {});
+        if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+      });
+    } catch (e) {
+      console.warn("Push notifications unavailable:", e.message);
+    }
+  }
+
+  // ========================================================
+  // LIVE ORDERS
+  // ========================================================
+  const ACTIVE_STATUSES = ["pending_restaurant","changes_requested","accepted","payment_uploaded","payment_verified","preparing","ready"];
+  let allDishes = [];
+  let activeOrders = [];
+  let historyOrders = [];
+
+  function matchesSearch(o, term) {
+    if (!term) return true;
+    const t = term.toLowerCase();
+    return (o.customerName || "").toLowerCase().includes(t)
+      || (o.mobile || "").includes(t)
+      || o.id.toLowerCase().includes(t);
+  }
+
+  function renderOrdersPanel() {
+    const term = document.getElementById("ordersSearch").value.trim();
+    const filtered = activeOrders.filter(o => matchesSearch(o, term));
+    renderOrders(filtered, "ordersList", true, !!term);
+  }
+
+  function renderHistoryPanel() {
+    const term = document.getElementById("historySearch").value.trim();
+    const statusFilter = document.getElementById("historyStatusFilter").value;
+    const filtered = historyOrders.filter(o => matchesSearch(o, term) && (!statusFilter || o.status === statusFilter));
+    renderOrders(filtered, "historyList", false, !!(term || statusFilter));
+  }
+
+  document.getElementById("ordersSearch").addEventListener("input", renderOrdersPanel);
+  document.getElementById("historySearch").addEventListener("input", renderHistoryPanel);
+  document.getElementById("historyStatusFilter").addEventListener("change", renderHistoryPanel);
+
+  function initDashboard() {
+    onSnapshot(query(collection(db, "orders"), orderBy("createdAt", "desc")), (snap) => {
+      const orders = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      activeOrders = orders.filter(o => ACTIVE_STATUSES.includes(o.status));
+      historyOrders = orders.filter(o => ["completed","rejected","cancelled"].includes(o.status));
+      renderOrdersPanel();
+      renderHistoryPanel();
+      renderReports(orders);
+    }, (err) => {
+      document.getElementById("ordersList").innerHTML = `<div class="card"><p>Error loading orders: ${err.message}</p></div>`;
+    });
+
+    onSnapshot(query(collection(db, "categories"), orderBy("sortOrder", "asc")), (snap) => {
+      window.__categories = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderMenuPanel();
+    });
+    onSnapshot(query(collection(db, "dishes"), orderBy("sortOrder", "asc")), (snap) => {
+      allDishes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderMenuPanel();
+    });
+  }
+
+  function fmtDate(ts) {
+    if (!ts) return "";
+    const d = ts.toDate ? ts.toDate() : new Date(ts);
+    return d.toLocaleString();
+  }
+
+  function renderOrders(orders, panelId, actionable, filtered) {
+    const panel = document.getElementById(panelId);
+    if (orders.length === 0) {
+      panel.innerHTML = `<div class="empty">${filtered ? "No orders match your search/filter." : "No orders here."}</div>`;
+      return;
+    }
+    panel.innerHTML = orders.map(o => orderCardHtml(o, actionable)).join("");
+    orders.forEach(o => wireOrderActions(o, actionable));
+  }
+
+  function orderCardHtml(o, actionable) {
+    const items = (o.items || []).map(i => `${i.name} × ${i.qty} — ₹${i.price * i.qty}`).join("<br>");
+    const corrections = (o.correctionRequests || []);
+    return `
+      <div class="order-card ${o.status}" data-id="${o.id}">
+        <div class="order-head">
+          <div>
+            <div class="order-cust">${o.customerName}</div>
+            <div class="order-mobile">${o.mobile}</div>
+          </div>
+          <span class="status-pill">${(o.status || "").replace(/_/g, " ")}</span>
+        </div>
+        <div class="order-id">${o.id} · ${fmtDate(o.createdAt)}</div>
+        <div class="order-items">${items}</div>
+        <div class="order-total">Total: ₹${o.total}</div>
+        ${o.specialInstructions ? `<div class="order-note">Note: ${o.specialInstructions}</div>` : ""}
+        ${o.rejectReason ? `<div class="order-note">Rejected: ${o.rejectReason}</div>` : ""}
+        ${o.receiptUrl ? `<div><a class="receipt-link" href="${o.receiptUrl}" target="_blank" rel="noopener">View payment receipt (${o.paymentMethod || ""})</a></div>` : ""}
+        ${actionable ? actionButtonsHtml(o) : `<div class="btn-row"><button class="btn btn-print" data-act="print">Print Receipt</button></div>`}
+        ${corrections.length ? `<div class="corr-list">${corrections.map((c, idx) => correctionRowHtml(c, idx)).join("")}</div>` : ""}
+      </div>`;
+  }
+
+  function actionButtonsHtml(o) {
+    if (o.status === "pending_restaurant" || o.status === "changes_requested") {
+      return `<div class="btn-row">
+        <button class="btn btn-accept" data-act="accept">Accept</button>
+        <button class="btn btn-reject" data-act="reject">Reject</button>
+        <button class="btn btn-change" data-act="requestChange">Request Changes</button>
+      </div>`;
+    }
+    if (o.status === "accepted") {
+      return `<div class="btn-row"><button class="btn btn-neutral" data-act="cancel">Cancel Order</button></div><p style="font-size:12px;color:#9aa39d;margin-top:6px;">Waiting for customer to complete payment.</p>`;
+    }
+    if (o.status === "payment_uploaded") {
+      return `<div class="btn-row">
+        <button class="btn btn-verify" data-act="verify">Verify Payment</button>
+        <button class="btn btn-reject" data-act="rejectPayment">Reject Payment</button>
+      </div>`;
+    }
+    if (o.status === "payment_verified") {
+      return `<div class="btn-row"><button class="btn btn-verify" data-act="preparing">Start Preparing</button></div>`;
+    }
+    if (o.status === "preparing") {
+      return `<div class="btn-row"><button class="btn btn-verify" data-act="ready">Mark Ready for Pickup</button></div>`;
+    }
+    if (o.status === "ready") {
+      return `<div class="btn-row"><button class="btn btn-verify" data-act="completed">Mark Completed</button> <button class="btn btn-print" data-act="print">Print Receipt</button></div>`;
+    }
+    return "";
+  }
+
+  function correctionRowHtml(c, idx) {
+    return `<div class="corr-item" data-idx="${idx}">
+      <div><strong>${c.from === "customer" ? "Customer" : "You"}:</strong> ${c.message} <em style="color:#9aa39d;">[${c.status}]</em>${c.reply ? `<br><span style="color:#0f766e;">↳ ${c.reply}</span>` : ""}</div>
+      ${c.from === "customer" && c.status === "pending" ? `<div class="corr-actions">
+        <button style="background:#dcfce7;color:#166534;" data-corr-act="accept">Accept</button>
+        <button style="background:#fee2e2;color:#b91c1c;" data-corr-act="reject">Reject</button>
+      </div>` : ""}
+    </div>`;
+  }
+
+  function wireOrderActions(o, actionable) {
+    const card = document.querySelector(`.order-card[data-id="${o.id}"]`);
+    if (!card) return;
+    const orderRef = doc(db, "orders", o.id);
+
+    const printBtn = card.querySelector('[data-act="print"]');
+    if (printBtn) printBtn.onclick = () => printReceipt(o);
+
+    if (!actionable) return;
+
+    const acceptBtn = card.querySelector('[data-act="accept"]');
+    if (acceptBtn) acceptBtn.onclick = () => updateDoc(orderRef, { status: "accepted" });
+
+    const rejectBtn = card.querySelector('[data-act="reject"]');
+    if (rejectBtn) rejectBtn.onclick = async () => {
+      const reason = prompt("Reason for rejecting this order:");
+      if (reason === null) return;
+      await updateDoc(orderRef, { status: "rejected", rejectReason: reason || "Not specified" });
+    };
+
+    const changeBtn = card.querySelector('[data-act="requestChange"]');
+    if (changeBtn) changeBtn.onclick = async () => {
+      const msg = prompt("What change would you like the customer to make?");
+      if (!msg) return;
+      await updateDoc(orderRef, { status: "changes_requested", changeRequestMessage: msg });
+    };
+
+    const cancelBtn = card.querySelector('[data-act="cancel"]');
+    if (cancelBtn) cancelBtn.onclick = async () => {
+      if (confirm("Cancel this order?")) await updateDoc(orderRef, { status: "cancelled" });
+    };
+
+    const verifyBtn = card.querySelector('[data-act="verify"]');
+    if (verifyBtn) verifyBtn.onclick = () => updateDoc(orderRef, { status: "payment_verified" });
+
+    const rejectPaymentBtn = card.querySelector('[data-act="rejectPayment"]');
+    if (rejectPaymentBtn) rejectPaymentBtn.onclick = async () => {
+      const reason = prompt("Why is this payment being rejected? (customer will be asked to re-upload)");
+      if (reason === null) return;
+      await updateDoc(orderRef, {
+        status: "accepted",
+        receiptUrl: null,
+        correctionRequests: [...(o.correctionRequests || []), { message: "Payment rejected: " + (reason || "please re-upload"), from: "restaurant", status: "accepted", reply: "", createdAt: Timestamp.now() }]
+      });
+    };
+
+    const prepBtn = card.querySelector('[data-act="preparing"]');
+    if (prepBtn) prepBtn.onclick = () => updateDoc(orderRef, { status: "preparing" });
+
+    const readyBtn = card.querySelector('[data-act="ready"]');
+    if (readyBtn) readyBtn.onclick = () => updateDoc(orderRef, { status: "ready" });
+
+    const completedBtn = card.querySelector('[data-act="completed"]');
+    if (completedBtn) completedBtn.onclick = () => updateDoc(orderRef, { status: "completed" });
+
+    card.querySelectorAll("[data-corr-act]").forEach(btn => {
+      btn.onclick = async () => {
+        const idx = parseInt(btn.closest(".corr-item").dataset.idx, 10);
+        const action = btn.dataset.corrAct;
+        const list = [...(o.correctionRequests || [])];
+        let reply = "";
+        if (action === "accept") reply = prompt("Optional reply to customer:", "Noted, we'll take care of it.") || "";
+        else reply = prompt("Optional reason for rejecting:", "") || "";
+        list[idx] = { ...list[idx], status: action === "accept" ? "accepted" : "rejected", reply };
+        await updateDoc(orderRef, { correctionRequests: list });
+      };
+    });
+  }
+
+  function printReceipt(o) {
+    const items = (o.items || []).map(i => `<tr><td>${i.name}</td><td>${i.qty}</td><td>₹${i.price * i.qty}</td></tr>`).join("");
+    document.getElementById("printArea").innerHTML = `
+      <h2>Krem Chympe Waterfall — Receipt</h2>
+      <p>Order: ${o.id}<br>${fmtDate(o.createdAt)}</p>
+      <p>${o.customerName} — ${o.mobile}</p>
+      <table style="width:100%; border-collapse:collapse; margin-top:10px;">
+        <tr><th style="text-align:left;">Item</th><th>Qty</th><th>Amount</th></tr>
+        ${items}
+      </table>
+      <h3 style="margin-top:10px;">Total: ₹${o.total}</h3>
+      <p>Payment: ${o.paymentMethod || "N/A"} — Status: ${o.status}</p>
+    `;
+    window.print();
+  }
+
+  // ========================================================
+  // MENU MANAGEMENT
+  // ========================================================
+  function renderMenuPanel() {
+    const cats = window.__categories || [];
+    const panel = document.getElementById("menuPanel");
+    panel.innerHTML = `
+      <div class="card">
+        <h2>Categories</h2>
+        <div id="catList"></div>
+        <div class="field" style="margin-top:10px;">
+          <label>New category name</label>
+          <input type="text" id="newCatName" placeholder="e.g. Desserts" />
+        </div>
+        <button class="btn-primary" id="addCatBtn">Add Category</button>
+      </div>
+      <div class="card">
+        <h2>Dishes</h2>
+        <div id="dishList"></div>
+      </div>
+      <div class="card">
+        <h2>Add New Dish</h2>
+        <div class="field"><label>Name</label><input type="text" id="newDishName" /></div>
+        <div class="field"><label>Description</label><textarea id="newDishDesc" rows="2"></textarea></div>
+        <div class="field"><label>Price (₹)</label><input type="number" id="newDishPrice" min="0" /></div>
+        <div class="field"><label>Category</label>
+          <select id="newDishCat">${cats.map(c => `<option value="${c.name}">${c.name}</option>`).join("")}</select>
+        </div>
+        <div class="field"><label>Image</label><input type="file" id="newDishImg" accept="image/*" /></div>
+        <button class="btn-primary" id="addDishBtn">Add Dish</button>
+      </div>
+    `;
+
+    document.getElementById("catList").innerHTML = cats.map(c => `
+      <div class="dish-row">
+        <div class="info"><div class="name">${c.name}</div></div>
+        <span class="small-link" data-cat-del="${c.id}">Delete</span>
+      </div>`).join("") || `<p style="font-size:12.5px;color:#9aa39d;">No categories yet.</p>`;
+
+    document.querySelectorAll("[data-cat-del]").forEach(el => {
+      el.onclick = async () => {
+        if (confirm("Delete this category? Dishes in it will remain but show no category.")) {
+          await deleteDoc(doc(db, "categories", el.dataset.catDel));
+        }
+      };
+    });
+
+    document.getElementById("addCatBtn").onclick = async () => {
+      const name = document.getElementById("newCatName").value.trim();
+      if (!name) return;
+      await addDoc(collection(db, "categories"), { name, sortOrder: cats.length });
+      document.getElementById("newCatName").value = "";
+    };
+
+    document.getElementById("dishList").innerHTML = allDishes.map(d => `
+      <div class="dish-row">
+        <img src="${d.img || ''}" />
+        <div class="info">
+          <div class="name">${d.name} — ₹${d.price}</div>
+          <div class="meta">${d.category || ""} · ${d.available}</div>
+        </div>
+        <select data-dish-status="${d.id}" style="width:auto;margin:0;">
+          <option value="available" ${d.available === "available" ? "selected" : ""}>Available</option>
+          <option value="unavailable" ${d.available === "unavailable" ? "selected" : ""}>Unavailable</option>
+          <option value="sold_out" ${d.available === "sold_out" ? "selected" : ""}>Sold Out</option>
+          <option value="featured" ${d.available === "featured" ? "selected" : ""}>Featured</option>
+        </select>
+        <span class="small-link" data-dish-del="${d.id}" style="margin-left:8px;">Delete</span>
+      </div>`).join("") || `<p style="font-size:12.5px;color:#9aa39d;">No dishes yet.</p>`;
+
+    document.querySelectorAll("[data-dish-status]").forEach(el => {
+      el.onchange = () => updateDoc(doc(db, "dishes", el.dataset.dishStatus), { available: el.value });
+    });
+    document.querySelectorAll("[data-dish-del]").forEach(el => {
+      el.onclick = async () => {
+        if (confirm("Delete this dish?")) await deleteDoc(doc(db, "dishes", el.dataset.dishDel));
+      };
+    });
+
+    document.getElementById("addDishBtn").onclick = async () => {
+      const name = document.getElementById("newDishName").value.trim();
+      const desc = document.getElementById("newDishDesc").value.trim();
+      const price = parseFloat(document.getElementById("newDishPrice").value);
+      const category = document.getElementById("newDishCat").value;
+      const fileInput = document.getElementById("newDishImg");
+      if (!name || !price) { alert("Name and price are required."); return; }
+      const btn = document.getElementById("addDishBtn");
+      btn.disabled = true; btn.textContent = "Adding...";
+      try {
+        let imgUrl = "";
+        if (fileInput.files.length > 0) {
+          const fileRef = ref(storage, `dishes/${Date.now()}_${fileInput.files[0].name}`);
+          await uploadBytes(fileRef, fileInput.files[0]);
+          imgUrl = await getDownloadURL(fileRef);
+        }
+        await addDoc(collection(db, "dishes"), {
+          name, desc, price, category, img: imgUrl,
+          available: "available", sortOrder: allDishes.length
+        });
+      } finally {
+        btn.disabled = false; btn.textContent = "Add Dish";
+      }
+    };
+  }
+
+  // ========================================================
+  // REPORTS
+  // ========================================================
+  function renderReports(orders) {
+    const panel = document.getElementById("reportsPanel");
+    const revenueStatuses = ["payment_verified", "preparing", "ready", "completed"];
+    const revenueOrders = orders.filter(o => revenueStatuses.includes(o.status));
+
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfWeek = new Date(startOfDay); startOfWeek.setDate(startOfDay.getDate() - startOfDay.getDay());
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    function sumSince(dateFrom) {
+      return revenueOrders
+        .filter(o => o.createdAt && o.createdAt.toDate && o.createdAt.toDate() >= dateFrom)
+        .reduce((s, o) => s + (o.total || 0), 0);
+    }
+    const daily = sumSince(startOfDay);
+    const weekly = sumSince(startOfWeek);
+    const monthly = sumSince(startOfMonth);
+
+    panel.innerHTML = `
+      <div class="card">
+        <h2>Sales Overview</h2>
+        <div class="stat-grid">
+          <div class="stat-box"><div class="num">₹${daily}</div><div class="lbl">Today</div></div>
+          <div class="stat-box"><div class="num">₹${weekly}</div><div class="lbl">This Week</div></div>
+          <div class="stat-box"><div class="num">₹${monthly}</div><div class="lbl">This Month</div></div>
+          <div class="stat-box"><div class="num">${revenueOrders.length}</div><div class="lbl">Total Orders (paid)</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Export</h2>
+        <button class="btn-primary" id="exportCsvBtn">Export All Orders (CSV)</button>
+      </div>
+    `;
+    document.getElementById("exportCsvBtn").onclick = () => exportCsv(orders);
+  }
+
+  function exportCsv(orders) {
+    const rows = [["Order ID","Customer","Mobile","Items","Total","Status","Payment Method","Created At"]];
+    orders.forEach(o => {
+      rows.push([
+        o.id, o.customerName, o.mobile,
+        (o.items || []).map(i => `${i.name} x${i.qty}`).join("; "),
+        o.total, o.status, o.paymentMethod || "", fmtDate(o.createdAt)
+      ]);
+    });
+    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "orders-export.csv"; a.click();
+    URL.revokeObjectURL(url);
+  }
+</script>
+
+</body>
+</html>

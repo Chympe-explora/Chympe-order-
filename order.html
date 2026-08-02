@@ -178,7 +178,7 @@
     // a full 5-15MB camera image — most phone receipt photos compress down
     // to a few hundred KB with no real loss of readability. PDFs are left
     // untouched (canvas compression only applies to images).
-    function compressImage(file, maxDimension = 1600, quality = 0.75) {
+    function compressImage(file, maxDimension = 800, quality = 0.6) {
       return new Promise((resolve) => {
         if (!file.type.startsWith("image/") || file.type === "image/gif") {
           resolve(file); // not a compressible raster image — upload as-is

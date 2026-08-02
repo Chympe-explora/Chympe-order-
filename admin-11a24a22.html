@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>System Admin</title>
+<meta name="robots" content="noindex, nofollow" />
+<style>
+  *{box-sizing:border-box;}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:#0a0d0c; color:#fff; min-height:100vh; margin:0;}
+  header{padding:20px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #1c2622;}
+  header h1{font-size:16px;}
+  header button{background:#1c2622; border:none; color:#fff; padding:8px 14px; border-radius:8px; font-size:12.5px; cursor:pointer;}
+  .wrap{max-width:480px; margin:0 auto; padding:24px 20px 60px;}
+  .tabs{display:flex; gap:6px; overflow-x:auto; margin-bottom:16px;}
+  .tab{flex:0 0 auto; padding:9px 14px; border-radius:999px; background:#14201d; font-size:12.5px; font-weight:600; color:#8a9690; cursor:pointer; white-space:nowrap;}
+  .tab.active{background:#0f766e; color:#fff;}
+  .panel{display:none;}
+  .panel.active{display:block;}
+  .card{background:#14201d; border-radius:16px; padding:20px; margin-bottom:16px;}
+  .card h2{font-size:14.5px; margin-bottom:14px;}
+  label{font-size:12px; color:#8a9690; display:block; margin-bottom:6px;}
+  input, textarea, select{
+    width:100%; padding:12px 14px; border-radius:10px; border:1px solid #26332e;
+    background:#0a0d0c; color:#fff; font-size:14px; margin-bottom:14px; font-family:inherit;
+  }
+  button.action{
+    width:100%; padding:13px; border:none; border-radius:10px; background:#0f766e;
+    color:#fff; font-weight:700; font-size:14px; cursor:pointer;
+  }
+  button.action:disabled{background:#374440; cursor:not-allowed;}
+  .msg{font-size:13px; margin-top:8px; min-height:16px;}
+  .msg.ok{color:#4ade80;}
+  .msg.err{color:#f87171;}
+  #gate2{display:none;}
+  .dish-row{display:flex; gap:10px; align-items:center; padding:10px 0; border-bottom:1px solid #1c2622;}
+  .dish-row img{width:40px; height:40px; border-radius:8px; object-fit:cover; background:#222;}
+  .dish-row .info{flex:1; font-size:13px;}
+  .dish-row .meta{font-size:11px; color:#8a9690;}
+  .small-link{font-size:12px; color:#f87171; cursor:pointer;}
+  .qr-preview{max-width:140px; border-radius:10px; margin-bottom:10px; display:block;}
+</style>
+</head>
+<body>
+
+<div id="gate1Screen">
+  <div class="wrap" style="padding-top:80px;">
+    <h1 style="margin-bottom:20px;">🔒 System Admin</h1>
+    <div class="card">
+      <label for="apw">Admin Password</label>
+      <input type="password" id="apw" autocomplete="current-password" />
+      <button class="action" id="loginBtn">Log In</button>
+      <div class="msg err" id="loginErr"></div>
+    </div>
+  </div>
+</div>
+
+<div id="app" style="display:none;">
+  <header>
+    <h1>System Admin</h1>
+    <button id="logoutBtn">Log Out</button>
+  </header>
+  <div class="wrap">
+    <div class="tabs">
+      <div class="tab active" data-panel="contentPanel">Site Content</div>
+      <div class="tab" data-panel="paymentPanel">Payment Settings</div>
+      <div class="tab" data-panel="menuPanel">Menu</div>
+      <div class="tab" data-panel="accountPanel">Restaurant Account</div>
+    </div>
+
+    <div class="panel active" id="contentPanel">
+      <div class="card">
+        <h2>Homepage Text</h2>
+        <label>Header Title</label>
+        <input type="text" id="cHeaderTitle" />
+        <label>Header Subtitle</label>
+        <input type="text" id="cHeaderSubtitle" />
+        <label>Pickup Notice</label>
+        <input type="text" id="cNotice" />
+        <button class="action" id="saveContentBtn">Save Content</button>
+        <div class="msg" id="contentMsg"></div>
+        <p style="font-size:11.5px; color:#8a9690; margin-top:10px;">Changes apply live on the customer site (requires the customer pages to read from the <code>content/site</code> document — see README for wiring this in fully, or edit index.html directly for now).</p>
+      </div>
+    </div>
+
+    <div class="panel" id="paymentPanel">
+      <div class="card">
+        <h2>Payment Settings</h2>
+        <label>UPI ID</label>
+        <input type="text" id="pUpi" placeholder="restaurant@upi" />
+        <label>QR Code Image</label>
+        <img class="qr-preview" id="pQrPreview" style="display:none;" />
+        <input type="file" id="pQrFile" accept="image/*" />
+        <label>Bank Transfer Details</label>
+        <textarea id="pBank" rows="3" placeholder="Account name, number, IFSC..."></textarea>
+        <button class="action" id="savePaymentBtn">Save Payment Settings</button>
+        <div class="msg" id="paymentMsg"></div>
+      </div>
+    </div>
+
+    <div class="panel" id="menuPanel">
+      <div class="card">
+        <h2>Categories</h2>
+        <div id="catList"></div>
+        <label style="margin-top:10px;">New category</label>
+        <input type="text" id="newCatName" />
+        <button class="action" id="addCatBtn">Add Category</button>
+      </div>
+      <div class="card">
+        <h2>Dishes</h2>
+        <div id="dishList"></div>
+      </div>
+    </div>
+
+    <div class="panel" id="accountPanel">
+      <div class="card">
+        <h2>Change Restaurant Password</h2>
+        <label for="newpw">New Restaurant Password</label>
+        <input type="password" id="newpw" autocomplete="new-password" />
+        <button class="action" id="changeBtn">Update Password</button>
+        <div class="msg" id="changeMsg"></div>
+        <p style="font-size:11.5px; color:#8a9690; margin-top:10px;">This calls a Cloud Function (see /functions in the repo) that must be deployed for this to work.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { auth, db, storage, functions } from "./firebase-init.js";
+  import { signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
+  import {
+    doc, getDoc, setDoc, collection, onSnapshot, query, orderBy, addDoc, deleteDoc, updateDoc
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+
+  // This is a SEPARATE Firebase Auth account from the restaurant login,
+  // e.g. superadmin@krem-chympe.local — create it once in the Firebase
+  // console (Authentication -> Users -> Add user).
+  const ADMIN_EMAIL = "superadmin@krem-chympe.local";
+
+  document.getElementById("loginBtn").addEventListener("click", async () => {
+    const pw = document.getElementById("apw").value;
+    const err = document.getElementById("loginErr");
+    try {
+      await signInWithEmailAndPassword(auth, ADMIN_EMAIL, pw);
+    } catch (e) {
+      err.textContent = "Incorrect password.";
+    }
+  });
+
+  onAuthStateChanged(auth, (user) => {
+    if (user && user.email === ADMIN_EMAIL) {
+      document.getElementById("gate1Screen").style.display = "none";
+      document.getElementById("app").style.display = "block";
+      loadContent();
+      loadPayment();
+      loadMenu();
+    }
+  });
+  document.getElementById("logoutBtn").onclick = async () => {
+    await signOut(auth);
+    window.location.reload();
+  };
+
+  document.querySelectorAll(".tab").forEach(tab => {
+    tab.onclick = () => {
+      document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+      document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+      tab.classList.add("active");
+      document.getElementById(tab.dataset.panel).classList.add("active");
+    };
+  });
+
+  // ---- Site content ----
+  async function loadContent() {
+    const snap = await getDoc(doc(db, "content", "site"));
+    const data = snap.exists() ? snap.data() : {};
+    document.getElementById("cHeaderTitle").value = data.headerTitle || "Krem Chympe Waterfall";
+    document.getElementById("cHeaderSubtitle").value = data.headerSubtitle || "Order ahead — collect at the food counter";
+    document.getElementById("cNotice").value = data.notice || "Pickup Location: Krem Chympe Waterfall Food Pickup Counter";
+  }
+  document.getElementById("saveContentBtn").onclick = async () => {
+    const msg = document.getElementById("contentMsg");
+    msg.className = "msg"; msg.textContent = "Saving...";
+    try {
+      await setDoc(doc(db, "content", "site"), {
+        headerTitle: document.getElementById("cHeaderTitle").value.trim(),
+        headerSubtitle: document.getElementById("cHeaderSubtitle").value.trim(),
+        notice: document.getElementById("cNotice").value.trim()
+      }, { merge: true });
+      msg.className = "msg ok"; msg.textContent = "Saved.";
+    } catch (e) {
+      msg.className = "msg err"; msg.textContent = "Failed: " + e.message;
+    }
+  };
+
+  // ---- Payment settings ----
+  async function loadPayment() {
+    const snap = await getDoc(doc(db, "settings", "payment"));
+    const data = snap.exists() ? snap.data() : {};
+    document.getElementById("pUpi").value = data.upiId || "";
+    document.getElementById("pBank").value = data.bankDetails || "";
+    if (data.qrImageUrl) {
+      const img = document.getElementById("pQrPreview");
+      img.src = data.qrImageUrl;
+      img.style.display = "block";
+    }
+  }
+  document.getElementById("savePaymentBtn").onclick = async () => {
+    const msg = document.getElementById("paymentMsg");
+    const btn = document.getElementById("savePaymentBtn");
+    btn.disabled = true;
+    msg.className = "msg"; msg.textContent = "Saving...";
+    try {
+      const update = {
+        upiId: document.getElementById("pUpi").value.trim(),
+        bankDetails: document.getElementById("pBank").value.trim()
+      };
+      const fileInput = document.getElementById("pQrFile");
+      if (fileInput.files.length > 0) {
+        const fileRef = ref(storage, `settings/qr_${Date.now()}_${fileInput.files[0].name}`);
+        await uploadBytes(fileRef, fileInput.files[0]);
+        update.qrImageUrl = await getDownloadURL(fileRef);
+      }
+      await setDoc(doc(db, "settings", "payment"), update, { merge: true });
+      msg.className = "msg ok"; msg.textContent = "Saved.";
+      loadPayment();
+    } catch (e) {
+      msg.className = "msg err"; msg.textContent = "Failed: " + e.message;
+    } finally {
+      btn.disabled = false;
+    }
+  };
+
+  // ---- Menu (categories + dishes) — same model as staff dashboard ----
+  let cats = [], dishes = [];
+  function loadMenu() {
+    onSnapshot(query(collection(db, "categories"), orderBy("sortOrder", "asc")), (snap) => {
+      cats = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderMenu();
+    });
+    onSnapshot(query(collection(db, "dishes"), orderBy("sortOrder", "asc")), (snap) => {
+      dishes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderMenu();
+    });
+  }
+  function renderMenu() {
+    document.getElementById("catList").innerHTML = cats.map(c => `
+      <div class="dish-row"><div class="info">${c.name}</div><span class="small-link" data-cat-del="${c.id}">Delete</span></div>
+    `).join("") || `<p style="font-size:12px;color:#8a9690;">No categories yet.</p>`;
+    document.querySelectorAll("[data-cat-del]").forEach(el => {
+      el.onclick = async () => { if (confirm("Delete category?")) await deleteDoc(doc(db, "categories", el.dataset.catDel)); };
+    });
+    document.getElementById("dishList").innerHTML = dishes.map(d => `
+      <div class="dish-row">
+        <img src="${d.img || ''}" />
+        <div class="info">${d.name} — ₹${d.price}<div class="meta">${d.category || ""} · ${d.available}</div></div>
+        <span class="small-link" data-dish-del="${d.id}">Delete</span>
+      </div>
+    `).join("") || `<p style="font-size:12px;color:#8a9690;">No dishes yet.</p>`;
+    document.querySelectorAll("[data-dish-del]").forEach(el => {
+      el.onclick = async () => { if (confirm("Delete dish?")) await deleteDoc(doc(db, "dishes", el.dataset.dishDel)); };
+    });
+  }
+  document.getElementById("addCatBtn").onclick = async () => {
+    const name = document.getElementById("newCatName").value.trim();
+    if (!name) return;
+    await addDoc(collection(db, "categories"), { name, sortOrder: cats.length });
+    document.getElementById("newCatName").value = "";
+  };
+
+  // ---- Restaurant password reset (via Cloud Function) ----
+  document.getElementById("changeBtn").addEventListener("click", async () => {
+    const newPassword = document.getElementById("newpw").value;
+    const msg = document.getElementById("changeMsg");
+    if (newPassword.length < 8) {
+      msg.className = "msg err";
+      msg.textContent = "Use at least 8 characters.";
+      return;
+    }
+    msg.className = "msg";
+    msg.textContent = "Updating…";
+    try {
+      // Calls the Cloud Function in /functions, which uses the Admin SDK to
+      // reset the restaurant account's password directly.
+      const resetFn = httpsCallable(functions, "adminResetRestaurantPassword");
+      await resetFn({ newPassword });
+      msg.className = "msg ok";
+      msg.textContent = "Restaurant password updated.";
+      document.getElementById("newpw").value = "";
+    } catch (e) {
+      msg.className = "msg err";
+      msg.textContent = "Failed: " + e.message;
+    }
+  });
+</script>
+</body>
+</html>

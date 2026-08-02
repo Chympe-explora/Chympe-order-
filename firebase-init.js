@@ -41,10 +41,10 @@ const firebaseConfig = {
 // Cloud Messaging -> Web configuration -> Web Push certificates.
 // (Not filled in yet — push notifications will silently no-op until you
 // paste your VAPID key here. Everything else works without it.)
-export const VAPID_KEY = "REPLACE_WITH_YOUR_VAPID_KEY";
+export const VAPID_KEY = "BPRGFcpSMQYhuJSr3V-zhBvYRbOkaUSK2O5gt-UiKZCFjOz22Sks5pw4RHSAL2tA1okIfV3PLW9mr_dw8Gn3fwA";
 
 // CHANGE THIS to the real email you created the staff Auth account with.
-export const RESTAURANT_LOGIN_EMAIL = "REPLACE_WITH_YOUR_STAFF_EMAIL";
+export const RESTAURANT_LOGIN_EMAIL = "orderchympe@gmail.com";
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";

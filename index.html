@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Krem Chympe Waterfall — Order Food</title>
+<meta name="theme-color" content="#0f766e" />
+<style>
+  :root{
+    --primary:#0f766e; --primary-dark:#0b5a54; --bg:#f7f8f6;
+    --card:#ffffff; --text:#1a2421; --muted:#6b7770; --accent:#f59e0b;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--text); padding-bottom:90px;}
+  header{background:linear-gradient(135deg,var(--primary),var(--primary-dark)); color:#fff; padding:28px 20px 22px; border-radius:0 0 24px 24px;}
+  header h1{font-size:22px; font-weight:700;}
+  header p{font-size:13px; opacity:.85; margin-top:4px;}
+  .notice{margin:16px; padding:12px 14px; background:#fff7ed; border:1px solid #fed7aa; border-radius:12px; font-size:13px; color:#9a5b13;}
+  main{padding:0 16px;}
+  .category-bar{display:flex; gap:8px; overflow-x:auto; padding:14px 0;}
+  .chip{flex:0 0 auto; padding:8px 16px; border-radius:999px; background:#fff; border:1px solid #e2e5e2; font-size:13px; font-weight:600; color:var(--muted); cursor:pointer;}
+  .chip.active{background:var(--primary); color:#fff; border-color:var(--primary);}
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:6px;}
+  .dish{background:var(--card); border-radius:16px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.06); display:flex; flex-direction:column;}
+  .dish img{width:100%; aspect-ratio:1/1; object-fit:cover; background:#eee;}
+  .dish.unavailable img{filter:grayscale(1); opacity:.5;}
+  .dish-body{padding:10px 12px 12px; flex:1; display:flex; flex-direction:column;}
+  .dish-name{font-size:14px; font-weight:700;}
+  .dish-desc{font-size:11.5px; color:var(--muted); margin-top:2px; line-height:1.4; flex:1;}
+  .dish-foot{display:flex; align-items:center; justify-content:space-between; margin-top:10px;}
+  .price{font-weight:700; font-size:14px;}
+  .add-btn{background:var(--primary); color:#fff; border:none; border-radius:10px; padding:6px 12px; font-size:12px; font-weight:700; cursor:pointer;}
+  .add-btn:disabled{background:#c7ccc9; cursor:not-allowed;}
+  .qty-control{display:flex; align-items:center; gap:8px; background:var(--primary); border-radius:10px; padding:4px 8px;}
+  .qty-control button{background:none; border:none; color:#fff; font-size:16px; font-weight:700; width:20px; cursor:pointer;}
+  .qty-control span{color:#fff; font-size:13px; font-weight:700; min-width:14px; text-align:center;}
+  .status-badge{font-size:10px; font-weight:700; padding:2px 8px; border-radius:999px;}
+  .status-badge.sold{background:#fee2e2; color:#b91c1c;}
+  .cart-bar{position:fixed; bottom:14px; left:16px; right:16px; background:var(--text); color:#fff; border-radius:16px; padding:14px 18px; display:none; align-items:center; justify-content:space-between; box-shadow:0 8px 24px rgba(0,0,0,.25); cursor:pointer;}
+  .cart-bar span.count{background:var(--accent); border-radius:999px; padding:2px 8px; font-size:12px; margin-right:8px;}
+  .cart-bar button{background:#fff; color:var(--text); border:none; border-radius:10px; padding:8px 16px; font-weight:700; font-size:13px;}
+
+  .sheet-overlay{position:fixed; inset:0; background:rgba(0,0,0,.4); display:none; z-index:20;}
+  .sheet{position:fixed; left:0; right:0; bottom:0; background:#fff; border-radius:20px 20px 0 0; padding:20px; max-height:75vh; overflow-y:auto; z-index:21; display:none;}
+  .sheet h2{font-size:16px; margin-bottom:14px;}
+  .cart-item{display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid #eee;}
+  .cart-item-name{font-size:13px; font-weight:600;}
+  .cart-item-price{font-size:12px; color:var(--muted);}
+  .cart-total-row{display:flex; justify-content:space-between; padding:16px 0 4px; font-weight:700; font-size:15px;}
+  .checkout-btn{width:100%; margin-top:14px; padding:14px; background:var(--primary); color:#fff; border:none; border-radius:12px; font-weight:700; font-size:15px;}
+  .empty-cart{text-align:center; color:var(--muted); font-size:13px; padding:30px 0;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Krem Chympe Waterfall</h1>
+  <p>Order ahead — collect at the food counter</p>
+</header>
+
+<div class="notice">📍 Pickup Location: Krem Chympe Waterfall Food Pickup Counter</div>
+
+<main>
+  <div class="category-bar" id="categoryBar"></div>
+  <div class="grid" id="dishGrid"></div>
+</main>
+
+<div class="cart-bar" id="cartBar">
+  <div><span class="count" id="cartCount">0</span>items · ₹<span id="cartTotal">0</span></div>
+  <button>View Cart</button>
+</div>
+
+<div class="sheet-overlay" id="overlay"></div>
+<div class="sheet" id="cartSheet">
+  <h2>Your Cart</h2>
+  <div id="cartItems"></div>
+  <div class="cart-total-row"><span>Total</span><span id="sheetTotal">₹0</span></div>
+  <button class="checkout-btn" id="checkoutBtn">Continue to Details</button>
+</div>
+
+<script>
+  // ---- Menu data. In the full build this comes from Firestore. ----
+  const DISHES = [
+    { id: "momos", name: "Steamed Momos", desc: "Chicken-stuffed dumplings, chili chutney.", price: 90, category: "Snacks", img: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=400", available: true },
+    { id: "maggi", name: "Masala Maggi", desc: "Spiced instant noodles with veggies.", price: 70, category: "Snacks", img: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400", available: false },
+    { id: "thali", name: "Veg Thali", desc: "Rice, dal, sabzi, roti, pickle.", price: 150, category: "Meals", img: "https://images.unsplash.com/photo-1631452180519-c014fe946bc7?w=400", available: true },
+    { id: "tea", name: "Masala Chai", desc: "Hot spiced tea.", price: 25, category: "Drinks", img: "https://images.unsplash.com/photo-1597318181409-cf64d0b5d8ee?w=400", available: true },
+  ];
+  const CATEGORIES = ["All", "Snacks", "Meals", "Drinks", "Desserts"];
+
+  let activeCategory = "All";
+  let cart = {}; // { dishId: quantity }
+
+  const categoryBar = document.getElementById("categoryBar");
+  const dishGrid = document.getElementById("dishGrid");
+  const cartBar = document.getElementById("cartBar");
+  const cartCount = document.getElementById("cartCount");
+  const cartTotal = document.getElementById("cartTotal");
+  const overlay = document.getElementById("overlay");
+  const cartSheet = document.getElementById("cartSheet");
+  const cartItems = document.getElementById("cartItems");
+  const sheetTotal = document.getElementById("sheetTotal");
+
+  function renderCategories() {
+    categoryBar.innerHTML = "";
+    CATEGORIES.forEach(cat => {
+      const chip = document.createElement("div");
+      chip.className = "chip" + (cat === activeCategory ? " active" : "");
+      chip.textContent = cat;
+      chip.onclick = () => { activeCategory = cat; renderCategories(); renderDishes(); };
+      categoryBar.appendChild(chip);
+    });
+  }
+
+  function renderDishes() {
+    dishGrid.innerHTML = "";
+    const visible = activeCategory === "All" ? DISHES : DISHES.filter(d => d.category === activeCategory);
+    visible.forEach(dish => {
+      const qty = cart[dish.id] || 0;
+      const card = document.createElement("div");
+      card.className = "dish" + (dish.available ? "" : " unavailable");
+      card.innerHTML = `
+        <img src="${dish.img}" alt="${dish.name}">
+        <div class="dish-body">
+          <div class="dish-name">${dish.name}</div>
+          <div class="dish-desc">${dish.desc}</div>
+          <div class="dish-foot">
+            ${dish.available ? `<span class="price">₹${dish.price}</span>` : `<span class="status-badge sold">Sold Out</span>`}
+            <div class="control-slot"></div>
+          </div>
+        </div>`;
+      const slot = card.querySelector(".control-slot");
+      if (!dish.available) {
+        slot.innerHTML = `<button class="add-btn" disabled>Add</button>`;
+      } else if (qty === 0) {
+        const btn = document.createElement("button");
+        btn.className = "add-btn";
+        btn.textContent = "Add";
+        btn.onclick = () => { cart[dish.id] = 1; renderDishes(); renderCartBar(); };
+        slot.appendChild(btn);
+      } else {
+        slot.innerHTML = `
+          <div class="qty-control">
+            <button data-action="dec">−</button>
+            <span>${qty}</span>
+            <button data-action="inc">+</button>
+          </div>`;
+        slot.querySelector('[data-action="dec"]').onclick = () => {
+          cart[dish.id] = Math.max(0, cart[dish.id] - 1);
+          if (cart[dish.id] === 0) delete cart[dish.id];
+          renderDishes(); renderCartBar();
+        };
+        slot.querySelector('[data-action="inc"]').onclick = () => {
+          cart[dish.id] += 1; renderDishes(); renderCartBar();
+        };
+      }
+      dishGrid.appendChild(card);
+    });
+  }
+
+  function cartCountTotal() {
+    let count = 0, total = 0;
+    for (const id in cart) {
+      const dish = DISHES.find(d => d.id === id);
+      count += cart[id];
+      total += cart[id] * dish.price;
+    }
+    return { count, total };
+  }
+
+  function renderCartBar() {
+    const { count, total } = cartCountTotal();
+    if (count === 0) { cartBar.style.display = "none"; return; }
+    cartBar.style.display = "flex";
+    cartCount.textContent = count;
+    cartTotal.textContent = total;
+  }
+
+  function renderCartSheet() {
+    const { total } = cartCountTotal();
+    cartItems.innerHTML = "";
+    const ids = Object.keys(cart);
+    if (ids.length === 0) {
+      cartItems.innerHTML = `<div class="empty-cart">Your cart is empty.</div>`;
+    } else {
+      ids.forEach(id => {
+        const dish = DISHES.find(d => d.id === id);
+        const qty = cart[id];
+        const row = document.createElement("div");
+        row.className = "cart-item";
+        row.innerHTML = `
+          <div>
+            <div class="cart-item-name">${dish.name}</div>
+            <div class="cart-item-price">₹${dish.price} × ${qty}</div>
+          </div>
+          <div class="qty-control">
+            <button data-action="dec">−</button>
+            <span>${qty}</span>
+            <button data-action="inc">+</button>
+          </div>`;
+        row.querySelector('[data-action="dec"]').onclick = () => {
+          cart[id] = Math.max(0, cart[id] - 1);
+          if (cart[id] === 0) delete cart[id];
+          renderDishes(); renderCartBar(); renderCartSheet();
+        };
+        row.querySelector('[data-action="inc"]').onclick = () => {
+          cart[id] += 1; renderDishes(); renderCartBar(); renderCartSheet();
+        };
+        cartItems.appendChild(row);
+      });
+    }
+    sheetTotal.textContent = "₹" + total;
+  }
+
+  cartBar.onclick = () => {
+    renderCartSheet();
+    overlay.style.display = "block";
+    cartSheet.style.display = "block";
+  };
+  overlay.onclick = () => {
+    overlay.style.display = "none";
+    cartSheet.style.display = "none";
+  };
+  document.getElementById("checkoutBtn").onclick = () => {
+    if (Object.keys(cart).length === 0) return;
+    // Next step in the full build: navigate to customer-details.html
+    // carrying this cart, which submits the order to the restaurant
+    // dashboard for accept/reject before payment.
+    alert("Next: Customer Details page (name, mobile, special instructions) — not built yet.");
+  };
+
+  renderCategories();
+  renderDishes();
+  renderCartBar();
+</script>
+
+</body>
+</html>

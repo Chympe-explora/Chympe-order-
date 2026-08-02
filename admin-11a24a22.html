@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>System Admin</title>
+<meta name="robots" content="noindex, nofollow" />
+<style>
+  *{box-sizing:border-box;}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:#0a0d0c; color:#fff; min-height:100vh; margin:0;}
+  .wrap{max-width:420px; margin:0 auto; padding:60px 20px;}
+  h1{font-size:18px; margin-bottom:20px;}
+  .card{background:#14201d; border-radius:16px; padding:24px; margin-bottom:16px;}
+  label{font-size:12px; color:#8a9690; display:block; margin-bottom:6px;}
+  input{
+    width:100%; padding:12px 14px; border-radius:10px; border:1px solid #26332e;
+    background:#0a0d0c; color:#fff; font-size:14px; margin-bottom:14px;
+  }
+  button{
+    width:100%; padding:13px; border:none; border-radius:10px; background:#0f766e;
+    color:#fff; font-weight:700; font-size:14px; cursor:pointer;
+  }
+  button:disabled{background:#374440; cursor:not-allowed;}
+  .msg{font-size:13px; margin-top:12px; min-height:16px;}
+  .msg.ok{color:#4ade80;}
+  .msg.err{color:#f87171;}
+  #gate2{display:none;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🔒 System Admin</h1>
+
+  <div class="card" id="gate1">
+    <label for="apw">Admin Password</label>
+    <input type="password" id="apw" autocomplete="current-password" />
+    <button id="loginBtn">Log In</button>
+    <div class="msg err" id="loginErr"></div>
+  </div>
+
+  <div class="card" id="gate2">
+    <h2 style="font-size:14px; margin-bottom:14px;">Change Restaurant Password</h2>
+    <label for="newpw">New Restaurant Password</label>
+    <input type="password" id="newpw" autocomplete="new-password" />
+    <button id="changeBtn">Update Password</button>
+    <div class="msg" id="changeMsg"></div>
+  </div>
+</div>
+
+<script type="module">
+  import { auth, functions } from "./firebase-init.js";
+  import { signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
+
+  // This is a SEPARATE Firebase Auth account from the restaurant login,
+  // e.g. superadmin@krem-chympe.local — create it once in the Firebase
+  // console (Authentication -> Users -> Add user) and give it a strong
+  // password only you know.
+  const ADMIN_EMAIL = "superadmin@krem-chympe.local";
+
+  const gate1 = document.getElementById("gate1");
+  const gate2 = document.getElementById("gate2");
+
+  document.getElementById("loginBtn").addEventListener("click", async () => {
+    const pw = document.getElementById("apw").value;
+    const err = document.getElementById("loginErr");
+    try {
+      await signInWithEmailAndPassword(auth, ADMIN_EMAIL, pw);
+    } catch (e) {
+      err.textContent = "Incorrect password.";
+    }
+  });
+
+  onAuthStateChanged(auth, (user) => {
+    if (user && user.email === ADMIN_EMAIL) {
+      gate1.style.display = "none";
+      gate2.style.display = "block";
+    }
+  });
+
+  document.getElementById("changeBtn").addEventListener("click", async () => {
+    const newPassword = document.getElementById("newpw").value;
+    const msg = document.getElementById("changeMsg");
+    if (newPassword.length < 8) {
+      msg.className = "msg err";
+      msg.textContent = "Use at least 8 characters.";
+      return;
+    }
+    msg.className = "msg";
+    msg.textContent = "Updating…";
+    try {
+      // Calls the Cloud Function below, which uses the Admin SDK to reset
+      // the restaurant account's password directly. This does NOT sign the
+      // restaurant out, does NOT email anyone, and Firebase Auth sends no
+      // notification of its own on a password reset via the Admin SDK.
+      const resetFn = httpsCallable(functions, "adminResetRestaurantPassword");
+      await resetFn({ newPassword });
+      msg.className = "msg ok";
+      msg.textContent = "Restaurant password updated.";
+      document.getElementById("newpw").value = "";
+    } catch (e) {
+      msg.className = "msg err";
+      msg.textContent = "Failed: " + e.message;
+    }
+  });
+</script>
+</body>
+</html>
